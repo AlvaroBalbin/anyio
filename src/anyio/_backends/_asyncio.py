@@ -785,8 +785,9 @@ class _AsyncioTaskStatus(abc.TaskStatus[T_contra]):
         self._spawn_scope = spawn_scope
 
     def started(self, value: T_contra | None = None) -> None:
-        task = cast(asyncio.Task, current_task())
-        _task_states[task].parent_id = self._parent_id
+        if (task := self._spawn_scope._host_task) is not None:
+            _task_states[task].parent_id = self._parent_id
+
         if self._future.done():
             if not self._future.cancelled():
                 raise RuntimeError("called 'started' twice on the same task status")
@@ -939,7 +940,11 @@ class TaskGroup(abc.TaskGroup):
                 )
 
         if task_status_future is not None:
-            parent_id = id(current_task())
+            parent_id = (
+                id(self.cancel_scope._host_task)
+                if task_status_future.done()
+                else id(current_task())
+            )
             caller_state = _task_states.get(cast(asyncio.Task, current_task()))
             if caller_state is not None and caller_state.cancel_scope is not None:
                 initial_scope = caller_state.cancel_scope

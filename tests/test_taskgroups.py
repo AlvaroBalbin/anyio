@@ -214,10 +214,15 @@ async def test_start_sync_wrapper() -> None:
         task_status.started(5)
         return taskfunc()
 
+    before = get_current_task()
     async with create_task_group() as tg:
         handle = await tg.start(wrapper, return_handle=True)
         assert handle.start_value == 5
         assert await handle == 8
+
+    after = get_current_task()
+    assert after.parent_id == before.parent_id
+    assert after.parent_id != after.id
 
 
 async def test_start_sync_wrapper_called_twice() -> None:
